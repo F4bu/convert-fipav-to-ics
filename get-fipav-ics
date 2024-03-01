@@ -9,89 +9,108 @@ from datetime import datetime, timedelta # to work with dates and times
 import pytz  # to work with timezones
 from ics import Calendar, Event  # to create an iCalendar file
 import requests # to make HTTP requests
+import sys # to write to stdout
 
 
 # Create an argument parser
 parser = argparse.ArgumentParser()
 
-# Add an argument for the file path
-parser.add_argument('stagione', help='Stagione')
-parser.add_argument('serie', help='Serie')
-parser.add_argument('fase', help='Fase')
-parser.add_argument('girone', help='Girone')
-parser.add_argument('squadra', help='Squadra')
+# check if stdin is opened
+if not sys.stdin.isatty():
+    # read input from stdin
+    input = sys.stdin.read()
 
-# Parse the arguments: all the arguments are mandatory
-args = parser.parse_args()
+# elif args.input:
+#     # read input from file
+#     with open(args.input, 'r') as file:
+#         input = file.read()
 
-# exit with error if missing arguments
-if not args.serie or not args.fase or not args.girone or not args.squadra or not args.stagione:
-    parser.error("Missing arguments")
-    
-# URL to the FIPAV website
-url = f'https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx?serie={args.serie}&fase={args.fase}&girone={args.girone}&squadra={args.squadra}&stagione={args.stagione}'
+else:
 
-# GET request to the URL and extract cookies from headers
-response = requests.get(url)
-cookies = response.cookies
+    # Add an argument for the file path
+    #parser.add_argument('--out', help='Output file', required=False)
+    #parser.add_argument('--in', help='Input file', required=False)
+    parser.add_argument('stagione', help='Stagione')
+    parser.add_argument('serie', help='Serie')
+    parser.add_argument('fase', help='Fase')
+    parser.add_argument('girone', help='Girone')
+    parser.add_argument('squadra', help='Squadra')
 
-# extract the value of the input field "ctl00$idserie" from the response text
-idserie_start = response.text.find('ctl00_idserie" value="') + len('ctl00$idserie" value="')
-idserie_end = response.text.find('"', idserie_start)
-idserie = response.text[idserie_start:idserie_end]
+    # Parse the arguments: all the arguments are mandatory
+    args = parser.parse_args()
 
-# Define the headers and data for the POST request
-headers = {
-    'authority': 'www.sol.milano.federvolley.it',
-    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-    'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-    'cache-control': 'no-cache',
-    'content-type': 'application/x-www-form-urlencoded',
-    'cookie': f'ASP.NET_SessionId={cookies["ASP.NET_SessionId"]}; .ASPXANONYMOUS={cookies[".ASPXANONYMOUS"]}',
-    'origin': 'https://www.sol.milano.federvolley.it',
-    'pragma': 'no-cache',
-    'referer': f'{url}',
-    'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-    'sec-ch-ua-mobile': '?1',
-    'sec-ch-ua-platform': '"Android"',
-    'sec-fetch-dest': 'document',
-    'sec-fetch-mode': 'navigate',
-    'sec-fetch-site': 'same-origin',
-    'sec-fetch-user': '?1',
-    'upgrade-insecure-requests': '1',
-    'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36',
-}
+    # exit with error if missing arguments
+    #if not args.serie or not args.fase or not args.girone or not args.squadra or not args.stagione:
+    #    parser.error("Missing arguments")
 
-data = {
-    '__EVENTTARGET' : 'ctl00$contentrisultati$btnStampaSq',
-    '__EVENTARGUMENT' : '',
-    '__LASTFOCUS' : '',
-    'ctl00$iframe' : 'False',
-    'ctl00$idfase' : '',
-    'ctl00$idserie' : f'{idserie}',
-    'ctl00$idgirone' : '',
-    'ctl00$idsquadra' : f'{args.squadra}',
-    'ctl00$idstagione' : f'{args.stagione}',
-    'ctl00$tipocamp' : f'{args.girone}',
-    'ctl00$nomenu' : '',
-    'ctl00$h' : '240',
-    'ctl00$stagione' : f'{args.stagione}',
-    'ctl00$serie' : f'{idserie}',
-    'ctl00$girone' : '**',
-    'ctl00$squadra' : f'{args.squadra}',
-    'ctl00$contentrisultati$SerieBase' : '',
-    'ctl00$contentrisultati$csvmode' : 'on'
-}
+    # URL to the FIPAV website
+    url = f'https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx?serie={args.serie}&fase={args.fase}&girone={args.girone}&squadra={args.squadra}&stagione={args.stagione}'
 
-response = requests.post(url, headers=headers, data=data)
+    # GET request to the URL and extract cookies from headers
+    response = requests.get(url)
+    cookies = response.cookies
 
-# print the response text
-#print(response.text)
+    # extract the value of the input field "ctl00$idserie" from the response text
+    idserie_start = response.text.find('ctl00_idserie" value="') + len('ctl00$idserie" value="')
+    idserie_end = response.text.find('"', idserie_start)
+    idserie = response.text[idserie_start:idserie_end]
 
-# CSV content is in response.text
-# Create a StringIO object from the response text
-# This allows us to use the csv module to read the content
-csv_file = StringIO(response.text)
+    # Define the headers and data for the POST request
+    headers = {
+        'authority': 'www.sol.milano.federvolley.it',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cache-control': 'no-cache',
+        'content-type': 'application/x-www-form-urlencoded',
+        'cookie': f'ASP.NET_SessionId={cookies["ASP.NET_SessionId"]}; .ASPXANONYMOUS={cookies[".ASPXANONYMOUS"]}',
+        'origin': 'https://www.sol.milano.federvolley.it',
+        'pragma': 'no-cache',
+        'referer': f'{url}',
+        'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+        'sec-ch-ua-mobile': '?1',
+        'sec-ch-ua-platform': '"Android"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36',
+    }
+
+    data = {
+        '__EVENTTARGET' : 'ctl00$contentrisultati$btnStampaSq',
+        '__EVENTARGUMENT' : '',
+        '__LASTFOCUS' : '',
+        'ctl00$iframe' : 'False',
+        'ctl00$idfase' : '',
+        'ctl00$idserie' : f'{idserie}',
+        'ctl00$idgirone' : '',
+        'ctl00$idsquadra' : f'{args.squadra}',
+        'ctl00$idstagione' : f'{args.stagione}',
+        'ctl00$tipocamp' : f'{args.girone}',
+        'ctl00$nomenu' : '',
+        'ctl00$h' : '240',
+        'ctl00$stagione' : f'{args.stagione}',
+        'ctl00$serie' : f'{idserie}',
+        'ctl00$girone' : '**',
+        'ctl00$squadra' : f'{args.squadra}',
+        'ctl00$contentrisultati$SerieBase' : '',
+        'ctl00$contentrisultati$csvmode' : 'on'
+    }
+
+    response = requests.post(url, headers=headers, data=data)
+
+    # print the response text
+    #print(response.text)
+
+    # CSV content is in response.text
+    # Create a StringIO object from the response text
+    # This allows us to use the csv module to read the content
+    input = response.text
+
+# strip '=' from the csv file
+input = input.replace('="', '"')
+csv_file = StringIO(input)
 
 # Read the CSV file
 # The file is separated by semicolons
@@ -103,8 +122,11 @@ timezone = 'Europe/Rome'
 # Create a new calendar
 cal = Calendar(creator='Fabulus-Fipav-ICS')
 
+# get stagione from the first row
+stagione = datetime.strptime(df['DATA'][0],'%d/%m/%Y').year
+
 # Create a calendar name
-calendar_name = f"FIPAV-{args.stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
+calendar_name = f"FIPAV-{stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
 cal.name = calendar_name
 
 # Iterate over the rows of the DataFrame
@@ -120,7 +142,7 @@ for _, row in df.iterrows():
     event.location = f"{row['CAMPO']}, {row['COMUNE']}, {row['VIA']}"
 
     # Combine date and time into a datetime object
-    dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y ="%H:%M"')
+    dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
 
     # Localize the datetime object to the defined timezone
     dt = pytz.timezone(timezone).localize(dt)
@@ -129,11 +151,15 @@ for _, row in df.iterrows():
     event.begin = dt
     event.end = dt + timedelta(hours=2)
 
+    # Set the creation/last-update time of the event
+    event.created = datetime.now()    
+
     # create a description with the results of the match are not zero
     if row['SETS_OSPITANTE'] != 0 and row['SETS_OSPITE'] != 0:
         event.name += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
         event.description = f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
-        event.description += f"\nPunteggio: {row['PUNTEGGIO'].replace('=','')}"
+        punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
+        event.description += f"\nPunteggio: {punteggio}"
 
     # Add the event to the calendar
     cal.events.add(event)
@@ -141,8 +167,17 @@ for _, row in df.iterrows():
 # Get the iCalendar representation of the calendar
 # The serialize method returns a string that represents the calendar in the iCalendar format
 ics_str = cal.serialize()
+ics_str += "\r\n"
+
+# wrap lines longer than 75 characters according to RFC5545
+ics_str = "\n".join([line if len(line) <= 72 else line[:72] + "\r\n " + line[72:] for line in ics_str.split("\n")])
+
 
 # Write the iCalendar representation to an iCal file
 # The file is named 'events' + calendar_name + '.ics'
-with open(calendar_name + '.ics', 'w') as f:
-    f.write(ics_str)
+#with open(calendar_name + '.ics', 'w') as f:
+#    f.write(ics_str)
+
+# write calendar to stdout
+sys.stdout.write(ics_str)
+
