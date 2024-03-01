@@ -1,6 +1,6 @@
 # FIPAV CSV to iCalendar Converter
 
-This Python script converts a CSV file of events into an iCalendar (.ics) file. The CSV file should be in a specific format, as described below.
+This Python script converts a CSV file of events into an iCalendar (.ics) file. The CSV file can be exported from the FIPAV site: https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx
 
 ## Requirements
 
@@ -25,7 +25,7 @@ Replace `<path_to_csv_file>` with the path to your CSV file.
 
 ## CSV File Format
 
-The CSV file should be semicolon-separated (;) and contain the following columns:
+The CSV file generated from FIPAV is semicolon-separated (;) and contain among others the following columns:
 
 - OSPITANTE: The home team
 - OSPITE: The visiting team
