@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
 
+"""
+This script retrieves data from the FIPAV website and converts it into an iCalendar file (.ics).
+The script takes command line arguments for the season, series, phase, group, and team.
+It then sends a GET request to the FIPAV website to retrieve the data.
+The data is in CSV format and is parsed using the pandas library.
+Each row of the CSV represents an event, which is then converted into an iCalendar event.
+The iCalendar events are added to a calendar and serialized into an iCalendar file.
+The resulting iCalendar file is written to stdout.
+"""
+
 # Import necessary modules
 import argparse # to parse command line arguments
 from io import StringIO # to create a file-like object from a string
@@ -10,7 +20,7 @@ import pytz  # to work with timezones
 from ics import Calendar, Event  # to create an iCalendar file
 import requests # to make HTTP requests
 import sys # to write to stdout
-
+from urllib.parse import quote # to encode the location as url
 
 # Create an argument parser
 parser = argparse.ArgumentParser()
@@ -38,10 +48,6 @@ else:
 
     # Parse the arguments: all the arguments are mandatory
     args = parser.parse_args()
-
-    # exit with error if missing arguments
-    #if not args.serie or not args.fase or not args.girone or not args.squadra or not args.stagione:
-    #    parser.error("Missing arguments")
 
     # URL to the FIPAV website
     url = f'https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx?serie={args.serie}&fase={args.fase}&girone={args.girone}&squadra={args.squadra}&stagione={args.stagione}'
@@ -140,6 +146,7 @@ for _, row in df.iterrows():
     # The details are obtained from the current row of the DataFrame
     event.name = f"{row['OSPITANTE']} vs {row['OSPITE']}"
     event.location = f"{row['CAMPO']}, {row['COMUNE']}, {row['VIA']}"
+    event.description = ''
 
     # Combine date and time into a datetime object
     dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
@@ -160,6 +167,12 @@ for _, row in df.iterrows():
         event.description = f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
         punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
         event.description += f"\nPunteggio: {punteggio}"
+
+    # encode the location as url
+    map_location = quote(event.location)
+
+    # add google maps link to the description
+    event.description += "\n\nhttps://www.google.com/maps/search/?api=1&query=" + map_location + "\n"
 
     # Add the event to the calendar
     cal.events.add(event)
