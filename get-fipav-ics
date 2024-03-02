@@ -13,7 +13,6 @@ The resulting iCalendar file is written to stdout.
 # Import necessary modules
 import argparse # to parse command line arguments
 from io import StringIO # to create a file-like object from a string
-import csv  # to read the csv file
 import pandas as pd  # to work with the data
 from datetime import datetime, timedelta # to work with dates and times
 import pytz  # to work with timezones
