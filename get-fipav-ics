@@ -161,7 +161,7 @@ for _, row in df.iterrows():
     event.created = datetime.now()    
 
     # create a description with the results of the match are not zero
-    if row['SETS_OSPITANTE'] != 0 and row['SETS_OSPITE'] != 0:
+    if row['SETS_OSPITANTE'] != 0 or row['SETS_OSPITE'] != 0:
         event.name += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
         event.description = f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
         punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
