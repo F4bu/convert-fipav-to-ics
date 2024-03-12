@@ -1,44 +1,37 @@
-# FIPAV CSV to iCalendar Converter
+# get-fipav-ics
 
-This Python script converts a CSV file of events into an iCalendar (.ics) file. The CSV file can be exported from the FIPAV site: https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx
+This script retrieves data from the FIPAV website and converts it into an iCalendar file (.ics). The script takes command line arguments for the season, series, phase, group, and team. It then sends a GET request to the FIPAV website to retrieve the data. The data is in CSV format and is parsed using the pandas library. Each row of the CSV represents an event, which is then converted into an iCalendar event. The iCalendar events are added to a calendar and serialized into an iCalendar file. The resulting iCalendar file is written to stdout.
 
 ## Requirements
 
-- Python 3.6 or higher
+- Python 3
 - pandas
-- ics
 - pytz
-
-You can install the required Python packages using pip:
-
-```bash
-pip install pandas ics pytz
-```
+- ics
+- requests
 
 ## Usage
 
 ```bash
-python generate_ical_from_fipav_csv.py <path_to_csv_file>
+python3 get-fipav-ics.py <stagione> <serie> <fase> <girone> <squadra>
 ```
 
-Replace `<path_to_csv_file>` with the path to your CSV file.
+Replace `<stagione>`, `<serie>`, `<fase>`, `<girone>`, and `<squadra>` with your desired values.
 
-## CSV File Format
+## Arguments
 
-The CSV file generated from FIPAV is semicolon-separated (;) and contain among others the following columns:
-
-- OSPITANTE: The home team
-- OSPITE: The visiting team
-- CAMPO: The location of the event
-- COMUNE: The city where the event is taking place
-- VIA: The street where the event is taking place
-- DATA: The date of the event, in the format dd/mm/yyyy
-- ORA: The time of the event, in the format "HH:MM"
+- `stagione`: The season for which you want to retrieve data.
+- `serie`: The series for which you want to retrieve data.
+- `fase`: The phase for which you want to retrieve data.
+- `girone`: The group for which you want to retrieve data.
+- `squadra`: The team for which you want to retrieve data.
 
 ## Output
 
-The script will create an iCalendar file named 'events.ics'. Each event in the CSV file will be converted into an iCalendar event and added to the 'events.ics' file. The events are set to last 2 hours by default.
+The script writes the resulting iCalendar file to stdout. You can redirect this to a file if you wish:
 
-## Timezone
+```bash
+python3 get-fipav-ics.py <stagione> <serie> <fase> <girone> <squadra> > output.ics
+```
 
-The script uses the 'Europe/Rome' timezone by default. You can change this by modifying the 'timezone' variable in the script.
+This README provides a brief description of the script, lists the requirements, explains how to use the script, describes the command line arguments, and explains the output.
