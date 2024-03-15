@@ -143,9 +143,9 @@ for _, row in df.iterrows():
 
     # Set the event details
     # The details are obtained from the current row of the DataFrame
-    event.name = f"{row['OSPITANTE']} vs {row['OSPITE']}"
-    event.location = f"{row['CAMPO']}, {row['COMUNE']}, {row['VIA']}"
-    event.description = ''
+    event.name = f"[{row['CAMPIONATO']}] {row['OSPITANTE']} vs {row['OSPITE']}"
+    event.location = f"{row['CAMPO']} {row['VIA']} {row['COMUNE']}"
+    event.description = f"Campionato:\n{row['DESCAMPIONATO']}\nPartita: {row['PARTITA']}\nGiornata: {row['GIORNATA']}\n"
 
     # Combine date and time into a datetime object
     dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
@@ -182,8 +182,7 @@ ics_str = cal.serialize()
 ics_str += "\r\n"
 
 # wrap lines longer than 75 characters according to RFC5545
-ics_str = "\n".join([line if len(line) <= 72 else line[:72] + "\r\n " + line[72:] for line in ics_str.split("\n")])
-
+ics_str = "\r\n ".join([ics_str[i:i+72] for i in range(0, len(ics_str), 72)])
 
 # Write the iCalendar representation to an iCal file
 # The file is named 'events' + calendar_name + '.ics'
