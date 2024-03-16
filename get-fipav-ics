@@ -190,7 +190,7 @@ RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
 END:STANDARD
 END:VTIMEZONE
 '''
-
+    vtimezone_data = vtimezone_data.replace('\n','\r\n')
     # insert vtimezone_data in ics_str before the first occurence of 'BEGIN:VEVENT'
     return ics_str.replace('BEGIN:VEVENT', vtimezone_data + 'BEGIN:VEVENT', 1)
 
