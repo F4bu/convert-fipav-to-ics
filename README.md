@@ -7,7 +7,7 @@ This script retrieves data from the FIPAV website and converts it into an iCalen
 - Python 3
 - pandas
 - pytz
-- ics
+- icalendar
 - requests
 
 ## Usage

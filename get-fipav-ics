@@ -16,7 +16,7 @@ from io import StringIO # to create a file-like object from a string
 import pandas as pd  # to work with the data
 from datetime import datetime, timedelta # to work with dates and times
 import pytz  # to work with timezones
-from ics import Calendar, Event  # to create an iCalendar file
+from icalendar import Calendar, Event, vDatetime  # to create an iCalendar file
 import requests # to make HTTP requests
 import sys # to write to stdout
 from urllib.parse import quote # to encode the location as url
@@ -108,27 +108,32 @@ def process_fipav_data(input):
     timezone = 'Europe/Rome'
 
     # Create a new calendar
-    cal = Calendar(creator='Fabulus-Fipav-ICS')
+    cal = Calendar()
 
     # get stagione from the first row
     stagione = datetime.strptime(df['DATA'][0],'%d/%m/%Y').year
 
     # Create a calendar name
     calendar_name = f"FIPAV-{stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
-    cal.name = calendar_name
+    cal.add('prodid', '-//Fabulus-Fipav-ICS//fabioinvernizzi.com//')
+    cal.add('version', '2.0')
 
     # Iterate over the rows of the DataFrame
     # Each row represents an event
     for _, row in df.iterrows():
 
         # Create an event with a predictable UID
-        event = Event(uid=f"{calendar_name}-{row['PARTITA']}")
+        event = Event()
+        event['uid'] = f"{calendar_name}-{row['PARTITA']}"
 
         # Set the event details
         # The details are obtained from the current row of the DataFrame
-        event.name = f"[{row['CAMPIONATO']}] {row['OSPITANTE']} vs {row['OSPITE']}"
-        event.location = f"{row['CAMPO']} {row['VIA']} {row['COMUNE']}"
-        event.description = f"Campionato:\n{row['DESCAMPIONATO']}\nPartita: {row['PARTITA']}\nGiornata: {row['GIORNATA']}\n"
+        event.add('summary', f"[{row['CAMPIONATO']}] {row['OSPITANTE']} vs {row['OSPITE']}")
+        event.add('description', f"Campionato:\n{row['DESCAMPIONATO']}\nPartita: {row['PARTITA']}\nGiornata: {row['GIORNATA']}\n")
+
+        location = f"{row['CAMPO']},{row['VIA']}, {row['COMUNE']}"
+        map_location = quote(location) # encode the location as url
+        event.add('location', location, parameters={'ALTREP':f"https://www.google.com/maps/search/{map_location}"})
 
         # Combine date and time into a datetime object
         dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
@@ -137,51 +142,35 @@ def process_fipav_data(input):
         dt = pytz.timezone(timezone).localize(dt)
 
         # Set the start and end times of the event
-        event.begin = dt
-        event.end = dt + timedelta(hours=2)
+        event.add('dtstart', dt)
+        event.add('dtend', dt + timedelta(hours=2))
 
         # Set the creation/last-update time of the event
-        event.created = datetime.now()    
+        event.add('dtstamp', datetime.now())  
 
         # create a description with the results of the match are not zero
         if row['SETS_OSPITANTE'] != 0 or row['SETS_OSPITE'] != 0:
-            event.name += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
-            event.description = f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
+            event['summary'] += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
+            event['description'] += f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
             punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
-            event.description += f"\nPunteggio: {punteggio}"
+            event['description'] += f"\nPunteggio: {punteggio}"
 
-        # encode the location as url
-        map_location = quote(event.location)
 
         # add google maps link to the description
-        event.description += "\n\nhttps://www.google.com/maps/search/?api=1&query=" + map_location + "\n"
+        event['description'] += "\n\nhttps://www.google.com/maps/search/" + map_location + "\n"
 
         # Add the event to the calendar
-        cal.events.add(event)
+        cal.add_component(event)
 
     # Get the iCalendar representation of the calendar
-    # The serialize method returns a string that represents the calendar in the iCalendar format
-    ics_str = cal.serialize()
-    ics_str += "\r\n"
-
+    # The to_ical method returns a bytes that represents the calendar in the iCalendar format
+    ics_str = cal.to_ical().decode('utf-8')
     return ics_str
-
-# wrap lines longer than 75 characters according to RFC5545
-def wrap_lines(ics_str):
-    lines = ics_str.split("\r\n")
-    wrapped_lines = []
-    for line in lines:
-        if len(line) <= 72:
-            wrapped_lines.append(line)
-        else:
-            wrapped_lines.append("\r\n ".join([line[i:i+72] for i in range(0, len(line), 72)]))
-    return "\r\n".join(wrapped_lines)
 
 # main program
 
 input = retrieve_fipav_data(args.stagione, args.serie, args.fase, args.girone, args.squadra)
 ics_str = process_fipav_data(input)
-ics_str = wrap_lines(ics_str)
 
 # write calendar to stdout
 sys.stdout.write(ics_str)
