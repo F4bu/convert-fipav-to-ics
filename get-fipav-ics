@@ -23,33 +23,19 @@ from urllib.parse import quote # to encode the location as url
 
 # Create an argument parser
 parser = argparse.ArgumentParser()
+parser.add_argument('stagione', help='Stagione')
+parser.add_argument('serie', help='Serie')
+parser.add_argument('fase', help='Fase')
+parser.add_argument('girone', help='Girone')
+parser.add_argument('squadra', help='Squadra')
 
-# check if stdin is opened
-if not sys.stdin.isatty():
-    # read input from stdin
-    input = sys.stdin.read()
+# Parse the arguments: all the arguments are mandatory
+args = parser.parse_args()
 
-# elif args.input:
-#     # read input from file
-#     with open(args.input, 'r') as file:
-#         input = file.read()
-
-else:
-
-    # Add an argument for the file path
-    #parser.add_argument('--out', help='Output file', required=False)
-    #parser.add_argument('--in', help='Input file', required=False)
-    parser.add_argument('stagione', help='Stagione')
-    parser.add_argument('serie', help='Serie')
-    parser.add_argument('fase', help='Fase')
-    parser.add_argument('girone', help='Girone')
-    parser.add_argument('squadra', help='Squadra')
-
-    # Parse the arguments: all the arguments are mandatory
-    args = parser.parse_args()
+def retrieve_fipav_data(stagione, serie, fase, girone, squadra):
 
     # URL to the FIPAV website
-    url = f'https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx?serie={args.serie}&fase={args.fase}&girone={args.girone}&squadra={args.squadra}&stagione={args.stagione}'
+    url = f'https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx?serie={serie}&fase={fase}&girone={girone}&squadra={squadra}&stagione={stagione}'
 
     # GET request to the URL and extract cookies from headers
     response = requests.get(url)
@@ -90,104 +76,115 @@ else:
         'ctl00$idfase' : '',
         'ctl00$idserie' : f'{idserie}',
         'ctl00$idgirone' : '',
-        'ctl00$idsquadra' : f'{args.squadra}',
-        'ctl00$idstagione' : f'{args.stagione}',
-        'ctl00$tipocamp' : f'{args.girone}',
+        'ctl00$idsquadra' : f'{squadra}',
+        'ctl00$idstagione' : f'{stagione}',
+        'ctl00$tipocamp' : f'{girone}',
         'ctl00$nomenu' : '',
         'ctl00$h' : '240',
-        'ctl00$stagione' : f'{args.stagione}',
+        'ctl00$stagione' : f'{stagione}',
         'ctl00$serie' : f'{idserie}',
         'ctl00$girone' : '**',
-        'ctl00$squadra' : f'{args.squadra}',
+        'ctl00$squadra' : f'{squadra}',
         'ctl00$contentrisultati$SerieBase' : '',
         'ctl00$contentrisultati$csvmode' : 'on'
     }
 
     response = requests.post(url, headers=headers, data=data)
+    return response.text
 
-    # print the response text
-    #print(response.text)
-
-    # CSV content is in response.text
+def process_fipav_data(input):
+    # CSV content is in input
+    # strip '=' from the csv file
+    input = input.replace('="', '"')
     # Create a StringIO object from the response text
     # This allows us to use the csv module to read the content
-    input = response.text
+    csv_file = StringIO(input)
 
-# strip '=' from the csv file
-input = input.replace('="', '"')
-csv_file = StringIO(input)
+    # Read the CSV file
+    # The file is separated by semicolons
+    df = pd.read_csv(csv_file, sep=';')
 
-# Read the CSV file
-# The file is separated by semicolons
-df = pd.read_csv(csv_file, sep=';')
+    # Define the timezone
+    timezone = 'Europe/Rome'
 
-# Define the timezone
-timezone = 'Europe/Rome'
+    # Create a new calendar
+    cal = Calendar(creator='Fabulus-Fipav-ICS')
 
-# Create a new calendar
-cal = Calendar(creator='Fabulus-Fipav-ICS')
+    # get stagione from the first row
+    stagione = datetime.strptime(df['DATA'][0],'%d/%m/%Y').year
 
-# get stagione from the first row
-stagione = datetime.strptime(df['DATA'][0],'%d/%m/%Y').year
+    # Create a calendar name
+    calendar_name = f"FIPAV-{stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
+    cal.name = calendar_name
 
-# Create a calendar name
-calendar_name = f"FIPAV-{stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
-cal.name = calendar_name
+    # Iterate over the rows of the DataFrame
+    # Each row represents an event
+    for _, row in df.iterrows():
 
-# Iterate over the rows of the DataFrame
-# Each row represents an event
-for _, row in df.iterrows():
+        # Create an event with a predictable UID
+        event = Event(uid=f"{calendar_name}-{row['PARTITA']}")
 
-    # Create an event with a predictable UID
-    event = Event(uid=f"{calendar_name}-{row['PARTITA']}")
+        # Set the event details
+        # The details are obtained from the current row of the DataFrame
+        event.name = f"[{row['CAMPIONATO']}] {row['OSPITANTE']} vs {row['OSPITE']}"
+        event.location = f"{row['CAMPO']} {row['VIA']} {row['COMUNE']}"
+        event.description = f"Campionato:\n{row['DESCAMPIONATO']}\nPartita: {row['PARTITA']}\nGiornata: {row['GIORNATA']}\n"
 
-    # Set the event details
-    # The details are obtained from the current row of the DataFrame
-    event.name = f"[{row['CAMPIONATO']}] {row['OSPITANTE']} vs {row['OSPITE']}"
-    event.location = f"{row['CAMPO']} {row['VIA']} {row['COMUNE']}"
-    event.description = f"Campionato:\n{row['DESCAMPIONATO']}\nPartita: {row['PARTITA']}\nGiornata: {row['GIORNATA']}\n"
+        # Combine date and time into a datetime object
+        dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
 
-    # Combine date and time into a datetime object
-    dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
+        # Localize the datetime object to the defined timezone
+        dt = pytz.timezone(timezone).localize(dt)
 
-    # Localize the datetime object to the defined timezone
-    dt = pytz.timezone(timezone).localize(dt)
+        # Set the start and end times of the event
+        event.begin = dt
+        event.end = dt + timedelta(hours=2)
 
-    # Set the start and end times of the event
-    event.begin = dt
-    event.end = dt + timedelta(hours=2)
+        # Set the creation/last-update time of the event
+        event.created = datetime.now()    
 
-    # Set the creation/last-update time of the event
-    event.created = datetime.now()    
+        # create a description with the results of the match are not zero
+        if row['SETS_OSPITANTE'] != 0 or row['SETS_OSPITE'] != 0:
+            event.name += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
+            event.description = f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
+            punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
+            event.description += f"\nPunteggio: {punteggio}"
 
-    # create a description with the results of the match are not zero
-    if row['SETS_OSPITANTE'] != 0 or row['SETS_OSPITE'] != 0:
-        event.name += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
-        event.description = f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
-        punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
-        event.description += f"\nPunteggio: {punteggio}"
+        # encode the location as url
+        map_location = quote(event.location)
 
-    # encode the location as url
-    map_location = quote(event.location)
+        # add google maps link to the description
+        event.description += "\n\nhttps://www.google.com/maps/search/?api=1&query=" + map_location + "\n"
 
-    # add google maps link to the description
-    event.description += "\n\nhttps://www.google.com/maps/search/?api=1&query=" + map_location + "\n"
+        # Add the event to the calendar
+        cal.events.add(event)
 
-    # Add the event to the calendar
-    cal.events.add(event)
+    # Get the iCalendar representation of the calendar
+    # The serialize method returns a string that represents the calendar in the iCalendar format
+    ics_str = cal.serialize()
+    ics_str += "\r\n"
 
-# Get the iCalendar representation of the calendar
-# The serialize method returns a string that represents the calendar in the iCalendar format
-ics_str = cal.serialize()
-ics_str += "\r\n"
+    return ics_str
 
 # wrap lines longer than 75 characters according to RFC5545
-ics_str = "\r\n ".join([ics_str[i:i+72] for i in range(0, len(ics_str), 72)])
+def wrap_lines(ics_str):
+    lines = ics_str.split("\r\n")
+    wrapped_lines = []
+    for line in lines:
+        if len(line) <= 72:
+            wrapped_lines.append(line)
+        else:
+            wrapped_lines.append("\r\n ".join([line[i:i+72] for i in range(0, len(line), 72)]))
+    return "\r\n".join(wrapped_lines)
 
-# Write the iCalendar representation to an iCal file
-# The file is named 'events' + calendar_name + '.ics'
-#with open(calendar_name + '.ics', 'w') as f:
-#    f.write(ics_str)
+# Call the function with the command line arguments
+input = retrieve_fipav_data(args.stagione, args.serie, args.fase, args.girone, args.squadra)
+
+# Call the function with the input
+ics_str = process_fipav_data(input)
+
+# Call the function
+ics_str = wrap_lines(ics_str)
 
 # write calendar to stdout
 sys.stdout.write(ics_str)
