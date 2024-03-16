@@ -33,5 +33,3 @@ The script writes the resulting iCalendar file to stdout. You can redirect this 
 ```bash
 python3 get-fipav-ics.py <stagione> <serie> <fase> <girone> <squadra> > output.ics
 ```
-
-This README provides a brief description of the script, lists the requirements, explains how to use the script, describes the command line arguments, and explains the output.

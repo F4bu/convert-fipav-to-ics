@@ -177,13 +177,10 @@ def wrap_lines(ics_str):
             wrapped_lines.append("\r\n ".join([line[i:i+72] for i in range(0, len(line), 72)]))
     return "\r\n".join(wrapped_lines)
 
-# Call the function with the command line arguments
+# main program
+
 input = retrieve_fipav_data(args.stagione, args.serie, args.fase, args.girone, args.squadra)
-
-# Call the function with the input
 ics_str = process_fipav_data(input)
-
-# Call the function
 ics_str = wrap_lines(ics_str)
 
 # write calendar to stdout
