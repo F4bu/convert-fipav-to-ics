@@ -37,8 +37,25 @@ def retrieve_fipav_data(stagione, serie, fase, girone, squadra):
     # URL to the FIPAV website
     url = f'https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx?serie={serie}&fase={fase}&girone={girone}&squadra={squadra}&stagione={stagione}'
 
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "it-IT,en-US;q=0.9,en;q=0.8",
+        "Priority": "u=0, i",
+        "Referer": "https://www.sol.milano.federvolley.it/sol/webRisultati/Calendari.aspx",
+        "Sec-Ch-Ua": "\"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"128\"",
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": "\"macOS\"",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    }
+
     # GET request to the URL and extract cookies from headers
-    response = requests.get(url)
+    response = requests.get(url, headers=headers)
     cookies = response.cookies
 
     # extract the value of the input field "ctl00$idserie" from the response text
@@ -117,7 +134,7 @@ def process_fipav_data(input):
     calendar_name = f"FIPAV-{stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
     cal.add('prodid', '-//Fabulus-Fipav-ICS//fabioinvernizzi.com//')
     cal.add('version', '2.0')
-    
+
 
     # Iterate over the rows of the DataFrame
     # Each row represents an event
@@ -147,7 +164,7 @@ def process_fipav_data(input):
         event.add('dtend', dt + timedelta(hours=2))
 
         # Set the creation/last-update time of the event
-        event.add('dtstamp', datetime.now())  
+        event.add('dtstamp', datetime.now())
 
         # create a description with the results of the match are not zero
         if row['SETS_OSPITANTE'] != 0 or row['SETS_OSPITE'] != 0:
@@ -170,7 +187,7 @@ def process_fipav_data(input):
 
 # function to fix missing vtimezone
 def add_vtimezone(ics_str):
-    
+
     vtimezone_data = '''BEGIN:VTIMEZONE
 TZID:Europe/Rome
 X-LIC-LOCATION:Europe/Rome
