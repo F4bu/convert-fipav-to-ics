@@ -2,7 +2,7 @@
 
 """
 This script retrieves data from the FIPAV website and converts it into an iCalendar file (.ics).
-The script takes command line arguments for the season, series, phase, group, and team.
+The script reads input parameters for the season, series, phase, group, and team from a file.
 It then sends a GET request to the FIPAV website to retrieve the data.
 The data is in CSV format and is parsed using the pandas library.
 Each row of the CSV represents an event, which is then converted into an iCalendar event.
@@ -23,14 +23,12 @@ from urllib.parse import quote # to encode the location as url
 
 # Create an argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument('stagione', help='Stagione')
-parser.add_argument('serie', help='Serie')
-parser.add_argument('fase', help='Fase')
-parser.add_argument('girone', help='Girone')
-parser.add_argument('squadra', help='Squadra')
-
-# Parse the arguments: all the arguments are mandatory
+parser.add_argument('input_file', help='Input file containing parameters')
 args = parser.parse_args()
+
+# Read input parameters from a file
+with open(args.input_file, 'r') as file:
+    lines = file.readlines()
 
 def retrieve_fipav_data(stagione, serie, fase, girone, squadra):
 
@@ -127,22 +125,23 @@ def process_fipav_data(input):
     # Create a new calendar
     cal = Calendar()
 
-    # get stagione from the first row
-    stagione = datetime.strptime(df['DATA'][0],'%d/%m/%Y').year
-
     # Create a calendar name
-    calendar_name = f"FIPAV-{stagione}-{df['CAMPIONATO'][0]}-{df['FASE'][0]}-{df['GIRONE'][0]}"
     cal.add('prodid', '-//Fabulus-Fipav-ICS//fabioinvernizzi.com//')
     cal.add('version', '2.0')
-
 
     # Iterate over the rows of the DataFrame
     # Each row represents an event
     for _, row in df.iterrows():
 
+        # skip row if beginning with 'CAMPIONATO' (header row)
+        if row['CAMPIONATO'] == 'CAMPIONATO':
+            continue
+
         # Create an event with a predictable UID
         event = Event()
-        event['uid'] = f"{calendar_name}-{row['PARTITA']}"
+        # define anno as the year extracted from DATA of the current row
+        anno = datetime.strptime(row['DATA'],'%d/%m/%Y').year
+        event['uid'] = f"FIPAV-{anno}-{row['CAMPIONATO']}-{row['FASE']}-{row['GIRONE']}-{row['PARTITA']}"
 
         # Set the event details
         # The details are obtained from the current row of the DataFrame
@@ -154,7 +153,11 @@ def process_fipav_data(input):
         event.add('location', location, parameters={'ALTREP':f"https://www.google.com/maps/search/{map_location}"})
 
         # Combine date and time into a datetime object
-        dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
+        # if can't parse the date, skip the row
+        try:
+            dt = datetime.strptime(f"{row['DATA']} {row['ORA']}", '%d/%m/%Y %H:%M')
+        except ValueError:
+            continue
 
         # Localize the datetime object to the defined timezone
         dt = pytz.timezone(timezone).localize(dt)
@@ -170,7 +173,8 @@ def process_fipav_data(input):
         if row['SETS_OSPITANTE'] != 0 or row['SETS_OSPITE'] != 0:
             event['summary'] += f" [{row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}]"
             event['description'] += f"Risultato: {row['SETS_OSPITANTE']}-{row['SETS_OSPITE']}"
-            punteggio = row['PUNTEGGIO'].replace('=', '').replace('"', '')
+            # force PUNTEGGIO to be a string and remove '=' and '"' characters
+            punteggio = str(row['PUNTEGGIO']).replace('=', '').replace('"', '')
             event['description'] += f"\nPunteggio: {punteggio}"
 
 
@@ -213,10 +217,17 @@ END:VTIMEZONE
 
 # main program
 
-input = retrieve_fipav_data(args.stagione, args.serie, args.fase, args.girone, args.squadra)
+ics_str = ""
+input = ""
+for line in lines:
+    stagione, serie, fase, girone, squadra = line.strip().split()
+    input += retrieve_fipav_data(stagione, serie, fase, girone, squadra)
+
+#sys.stdout.write(input)
+#exit
+
 ics_str = process_fipav_data(input)
 ics_str = add_vtimezone(ics_str)
 
 # write calendar to stdout
 sys.stdout.write(ics_str)
-
