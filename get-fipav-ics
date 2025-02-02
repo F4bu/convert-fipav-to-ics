@@ -128,6 +128,7 @@ def process_fipav_data(input):
     # Create a calendar name
     cal.add('prodid', '-//Fabulus-Fipav-ICS//fabioinvernizzi.com//')
     cal.add('version', '2.0')
+    cal.add('X-WR-CALNAME', args.input_file)
 
     # Iterate over the rows of the DataFrame
     # Each row represents an event
